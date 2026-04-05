@@ -35,7 +35,9 @@ use std::sync::Mutex;
 
 // ── Constants that mirror the Python reference ───────────────────────────────
 
-/// Minimum spatial dimension for the generated images.
+/// Minimum spatial dimension for the generated images. Yes, 'usize' is
+/// ridiculously large, but it's the standard unsigned integer type for sizes in
+/// Rust.
 pub const MIN_IMG_LEN: usize = 80;
 /// Maximum spatial dimension for the generated images.
 pub const MAX_IMG_LEN: usize = 120;
@@ -86,21 +88,21 @@ pub struct EllipseItem {
 
 // ── Ellipse drawing helper ───────────────────────────────────────────────────
 
-/// Draws a filled ellipse on `img` (HWC layout, i32) and returns the boolean
+/// Draws a filled ellipse on `img` (HWC layout, u8) and returns the boolean
 /// mask.  Mirrors the Python `ellipse()` function.
 ///
-/// **Rust ownership note:** `img` is passed as `&mut [i32]` (a mutable
+/// **Rust ownership note:** `img` is passed as `&mut [u8]` (a mutable
 /// slice), which is Rust's equivalent of modifying a NumPy array in-place.
 /// The caller retains ownership of the backing `Vec`; we just borrow it
 /// mutably for the duration of this call.
 fn draw_ellipse(
-    img: &mut [i32],
+    img: &mut [u8],
     height: usize,
     width: usize,
     channels: usize,
     hlen_frac: f64,
     vlen_frac: f64,
-    intensity: i32,
+    intensity: u8,
     rng: &mut StdRng,
 ) -> Vec<bool> {
     let img_size = height.min(width) as f64;
@@ -138,27 +140,22 @@ fn draw_ellipse(
 /// filtering, then return a CHW f32 buffer.
 ///
 /// We use the [`image`] crate (Rust's equivalent of Pillow) for high-quality
-/// resizing.  The workflow is:  `i32 HWC buffer → image::RgbImage → resize()
+/// resizing.  The workflow is:  `u8 HWC buffer → image::RgbImage → resize()
 /// → CHW f32`.  This is like doing `Image.fromarray(arr).resize(size,
 /// Image.LANCZOS)` in Python.
 fn resize_rgb_to_chw(
-    src: &[i32],
+    src: &[u8],
     h_in: usize,
     w_in: usize,
     h_out: usize,
     w_out: usize,
 ) -> Vec<f32> {
-    // Build an RgbImage (HWC, u8) from the i32 HWC buffer.
-    let mut rgb = RgbImage::new(w_in as u32, h_in as u32);
-    for y in 0..h_in {
-        for x in 0..w_in {
-            let base = (y * w_in + x) * 3;
-            let r = src[base].clamp(0, 255) as u8;
-            let g = src[base + 1].clamp(0, 255) as u8;
-            let b = src[base + 2].clamp(0, 255) as u8;
-            rgb.put_pixel(x as u32, y as u32, image::Rgb([r, g, b]));
-        }
-    }
+    let rgb = RgbImage::from_raw(
+        w_in as u32,
+        h_in as u32,
+        src.to_vec(),
+    )
+    .expect("RGB buffer size mismatch");
 
     let resized = image::imageops::resize(
         &rgb,
@@ -225,13 +222,13 @@ fn sample_element(rng: &mut StdRng) -> EllipseItem {
     let channels = 3usize;
     let num_pixels = height * width * channels;
 
-    // Random background image (HWC, i32).
-    let mut img: Vec<i32> =
-        (0..num_pixels).map(|_| rng.gen_range(0..255)).collect();
+    // Random background image (HWC, u8).
+    let mut img: Vec<u8> =
+        (0..num_pixels).map(|_| rng.gen_range(0..=255)).collect();
 
     // Sorted random intensities for each ellipse layer.
-    let mut layer_vals: Vec<i32> =
-        (0..NUM_LAYERS).map(|_| rng.gen_range(0..255)).collect();
+    let mut layer_vals: Vec<u8> =
+        (0..NUM_LAYERS).map(|_| rng.gen_range(0..=255)).collect();
     layer_vals.sort();
 
     let mut gt_mask = vec![false; height * width];
@@ -272,7 +269,7 @@ fn sample_element(rng: &mut StdRng) -> EllipseItem {
     let binary_target = if masked_mean < 128.0 { 1 } else { 0 };
     let regression_target = (masked_mean - img_mean) as f32;
 
-    // Resize image (HWC i32 → CHW f32) using Lanczos3 filtering via the `image`
+    // Resize image (HWC u8 → CHW f32) using Lanczos3 filtering via the `image`
     // crate.
     let resized_img = resize_rgb_to_chw(&img, height, width, FIXED_H, FIXED_W);
 
