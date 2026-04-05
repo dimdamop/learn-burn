@@ -1,0 +1,18 @@
+{
+  "optimizer": {
+    "weight_decay": null,
+    "grad_clipping": null,
+    "beta_1": 0.9,
+    "beta_2": 0.999,
+    "epsilon": 0.00001
+  },
+  "model": {
+    "base_channels": 32
+  },
+  "num_epochs": 10,
+  "train_size": 1000,
+  "valid_size": 100,
+  "batch_size": 64,
+  "num_workers": 2,
+  "seed": 42
+}

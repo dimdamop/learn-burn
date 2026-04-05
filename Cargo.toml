@@ -1,0 +1,32 @@
+[package]
+name = "learn-burn"
+version = "0.1.0"
+edition = "2024"
+description = "Educational project: UNet-like segmentation in Burn (Rust deep learning framework)"
+
+[features]
+default = ["tch-gpu"]
+ndarray = ["burn/ndarray"]
+wgpu = ["burn/wgpu"]
+tch-cpu = ["burn/tch", "dep:tch"]
+tch-gpu = ["burn/tch", "dep:tch"]
+
+[dependencies]
+# Burn deep-learning framework  –  train feature pulls in the training dashboard,
+# dataset feature provides the Dataset trait + transforms, sqlite-bundled embeds SQLite.
+burn = { version = "0.20", features = ["train", "dataset"] }
+
+# libtorch bindings — optional, only pulled in by tch-cpu/tch-gpu features.
+tch = { version = "0.22", optional = true }
+
+# Image processing (resize, etc.) — the standard Rust CV crate.
+image = "0.25"
+
+# Random number generation for the synthetic dataset
+rand = "0.8"
+
+# Serialization for dataset items
+serde = { version = "1", features = ["derive"] }
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }

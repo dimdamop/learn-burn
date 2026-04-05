@@ -1,0 +1,9 @@
+name: null
+channels:
+    - conda-forge
+    - nvidia
+dependencies:
+    - python=3.12
+    - pip
+    - poetry
+    - cuda-toolkit >=12.6,<13
